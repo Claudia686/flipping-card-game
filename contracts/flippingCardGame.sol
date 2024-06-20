@@ -21,7 +21,9 @@ struct Player {
   mapping(uint => address[]) public gamePlayers;
   mapping(uint => uint) public gameEntryFee;
 
- // Chainlink VRF parameters
+  event RequestFulFill(uint256 requestId, uint256[] randomWords);
+
+// Chainlink VRF parameters
 VRFCoordinatorV2Interface COORDINATOR;
     uint64 public s_subscriptionId;
     bytes32 public keyHash;
@@ -29,7 +31,7 @@ VRFCoordinatorV2Interface COORDINATOR;
     uint64 public callbackGasLimit = 150000;
     uint16 public requestConfirmations = 3;
     uint32 public numWords = 1;
-    uint public randomWordsNum; // Select a winner.
+    uint public randomWordsNum; // Select a winner
 
 constructor (
     uint64 subscriptionId,
@@ -51,6 +53,11 @@ VRFConsumerBaseV2(_vrfCoordinator)
 
     // Initialize game settings
     gameStarted = false;
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
+    	randomWordsNum = randomWords[0];
+    	emit RequestFulFill(requestId, randomWords);
     }
 }
 
