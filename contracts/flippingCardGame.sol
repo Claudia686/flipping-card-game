@@ -5,23 +5,22 @@ import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// State veriable
 contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     bool public gameStarted;
 	uint public entryFee;
 	uint public gameId;
-
-struct Player {
-    address playerAddress; // The address of the player
-  	uint gameId;  // The ID of the game
-  	uint entryFee; // The entry fee paid by the player
-}
 
   mapping(address => Player) public players;
   mapping(uint => address[]) public gamePlayers;
   mapping(uint => uint) public gameEntryFee;
 
   event RequestFulFill(uint256 requestId, uint256[] randomWords);
+
+  struct Player {
+    address playerAddress; // The address of the player
+    uint gameId;  // The ID of the game
+    uint entryFee; // The entry fee paid by the player
+}
 
 // Chainlink VRF parameters
 VRFCoordinatorV2Interface COORDINATOR;
