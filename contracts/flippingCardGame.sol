@@ -34,7 +34,7 @@ VRFCoordinatorV2Interface COORDINATOR;
     uint public randomWordsNum; // Select a winner
 
 constructor (
-    uint64 subscriptionId,
+    uint64  subscriptionId,
     address _linkToken,
     bytes32 _keyHash,
     address _vrfCoordinator
@@ -55,9 +55,23 @@ VRFConsumerBaseV2(_vrfCoordinator)
     gameStarted = false;
     }
 
+    function createGame(uint _gameId, uint _entryFee) public {
+        // Entry fee check
+        require(_entryFee != 0, "Entry fee must be greater than zero");
+        // Game ID check
+        require(gameEntryFee[_gameId] == 0, "Game ID already exists");
+        // Game started check
+        require(!gameStarted, "Game has already started");
+    }
+
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
-    	randomWordsNum = randomWords[0];
+    	randomWordsNum = randomWords [0];
     	emit RequestFulFill(requestId, randomWords);
     }
+
+     function getVRFCoordinator() public view returns (address) {
+        return address(COORDINATOR);
+    }
 }
+
 
