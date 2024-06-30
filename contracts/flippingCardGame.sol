@@ -68,8 +68,8 @@ VRFConsumerBaseV2(_vrfCoordinator)
         gameEntryFee[_gameId] = _entryFee; 
 
         // Update the gameId state variable to the new game ID
-        gameId = _gameId; 
-        
+        gameId = _gameId;
+
         // Emit the GameCreated event
         emit GameCreated(_gameId, _entryFee);
     }
