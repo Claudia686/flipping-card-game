@@ -9,18 +9,20 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     bool public gameStarted;
 	uint public entryFee;
 	uint public gameId;
-
+  
   mapping(address => Player) public players;
   mapping(uint => address[]) public gamePlayers;
   mapping(uint => uint) public gameEntryFee;
 
   event RequestFulFill(uint256 requestId, uint256[] randomWords);
+  event GameCreated(uint gameId, uint entryFee);
 
   struct Player {
     address playerAddress; // The address of the player
     uint gameId;  // The ID of the game
     uint entryFee; // The entry fee paid by the player
-}
+ }
+
 
 // Chainlink VRF parameters
 VRFCoordinatorV2Interface COORDINATOR;
@@ -41,28 +43,37 @@ constructor (
 
 // Initialize the VRFConsumerBaseV2 with the VRF coordinator address
 VRFConsumerBaseV2(_vrfCoordinator) 
-    Ownable(msg.sender)
-    {
+    Ownable(msg.sender) {
 
 // Initialize Chainlink VRF parameters	
     s_subscriptionId = subscriptionId;
     keyHash = _keyHash;
     linkToken = _linkToken;
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
+       gameStarted = false;
+   }
 
-    // Initialize game settings
-    gameStarted = false;
-    }
-
-    function createGame(uint _gameId, uint _entryFee) public {
+    function createGame(uint _gameId, uint _entryFee) public onlyOwner {
         // Entry fee check
         require(_entryFee != 0, "Entry fee must be greater than zero");
         // Game ID check
         require(gameEntryFee[_gameId] == 0, "Game ID already exists");
         // Game started check
         require(!gameStarted, "Game has already started");
-    }
 
+        // Set the entry fee state variable
+        entryFee = _entryFee; 
+
+        // Update the mapping with the new game ID and entry fee
+        gameEntryFee[_gameId] = _entryFee; 
+
+        // Update the gameId state variable to the new game ID
+        gameId = _gameId; 
+        
+        // Emit the GameCreated event
+        emit GameCreated(_gameId, _entryFee);
+    }
+    
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
     	randomWordsNum = randomWords [0];
     	emit RequestFulFill(requestId, randomWords);
@@ -72,5 +83,6 @@ VRFConsumerBaseV2(_vrfCoordinator)
         return address(COORDINATOR);
     }
 }
+
 
 
