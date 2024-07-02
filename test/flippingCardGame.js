@@ -79,5 +79,31 @@ describe('FlippingCardGame', () => {
 				await expect(tx).to.emit(flippingCardGame, 'GameCreated').withArgs(gameId, newEntryFee)
 			})
 		})
+
+		describe('Failure', () => {
+			it('Should revert on duplicate game ID', async () => {
+				const gameId = 1;
+				const newEntryFee = ethers.parseUnits('2', 'ether')
+				// Create game
+				await flippingCardGame.connect(deployer).createGame(gameId, newEntryFee);
+				// Check to revert
+				await expect(flippingCardGame.connect(deployer).createGame(gameId, newEntryFee))
+					.to.be.revertedWith('Game ID already exists');
+			})
+
+			it('Rejects when creating a game with zero entry fee', async () => {
+				const gameId = 2;
+				const newEntryFee = ethers.parseUnits('0', 'ether')
+				await expect(flippingCardGame.connect(deployer).createGame(gameId, newEntryFee))
+					.to.be.revertedWith('Entry fee must be greater than zero');
+			})
+
+			it('Rejects unauthorized account from creating a game', async () => {
+				const gameId = 3;
+				const entryFee = ethers.parseUnits('2', 'ether')
+				await expect(flippingCardGame.connect(player).createGame(gameId, entryFee))
+					.to.be.reverted;
+			})
+		})
 	})
 })
