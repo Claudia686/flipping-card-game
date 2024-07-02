@@ -55,12 +55,9 @@ VRFConsumerBaseV2(_vrfCoordinator)
 
     function createGame(uint _gameId, uint _entryFee) public onlyOwner {
         // Entry fee check
-        require(_entryFee != 0, "Entry fee must be greater than zero");
+        require(_entryFee != 0, 'Entry fee must be greater than zero');
         // Game ID check
-        require(gameEntryFee[_gameId] == 0, "Game ID already exists");
-        // Game started check
-        require(!gameStarted, "Game has already started");
-
+        require(gameEntryFee[_gameId] == 0, 'Game ID already exists');
         // Set the entry fee state variable
         entryFee = _entryFee; 
 

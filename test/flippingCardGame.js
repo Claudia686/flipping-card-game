@@ -47,18 +47,17 @@ describe('FlippingCardGame', () => {
 
 	describe('Create game', () => {
 		describe('Success', () => {
-			let gameId, newEntryFee
+			const gameId = 1;
+			const newEntryFee = ethers.parseUnits('2', 'ether')
+			let tx
 
 			beforeEach(async () => {
-				gameId = 1;
-				newEntryFee = ethers.parseUnits('2', 'ether')
+				// Create a game
+				tx = await flippingCardGame.connect(deployer).createGame(gameId, newEntryFee)
+				await tx.wait()
 			})
 
-			// Create a game
 			it('Should allow owner to set a game', async () => {
-				const tx = await flippingCardGame.connect(deployer).createGame(gameId, newEntryFee)
-				await tx.wait()
-
 				// Check if new entry fee is set correctly
 				const storedFee = await flippingCardGame.gameEntryFee(gameId);
 				expect(storedFee).to.equal(newEntryFee)
@@ -67,14 +66,15 @@ describe('FlippingCardGame', () => {
 				const storedGameId = await flippingCardGame.gameId();
 				expect(storedGameId).to.equal(gameId)
 			})
-            
-            // Check initial state of the game started
+
+			// Check initial state of the game started
 			it('Should set game started to false', async () => {
 				expect(await flippingCardGame.gameStarted()).to.be.false
-			})  
-            
-            // Emit game created event   
+			})
+
+			// Emit game created event   
 			it('Should emit game created event with correct arguments', async () => {
+				const gameId = 5;
 				const tx = await flippingCardGame.connect(deployer).createGame(gameId, newEntryFee)
 				await expect(tx).to.emit(flippingCardGame, 'GameCreated').withArgs(gameId, newEntryFee)
 			})
