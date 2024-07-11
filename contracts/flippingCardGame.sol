@@ -13,16 +13,17 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
   mapping(address => Player) public players;
   mapping(uint => address[]) public gamePlayers;
   mapping(uint => uint) public gameEntryFee;
+  mapping(uint => mapping(address => bool)) public playerInGame;
 
   event RequestFulFill(uint256 requestId, uint256[] randomWords);
   event GameCreated(uint gameId, uint entryFee);
+  event GameInitiated(uint gameId, uint entryFee);
 
   struct Player {
     address playerAddress; // The address of the player
     uint gameId;  // The ID of the game
     uint entryFee; // The entry fee paid by the player
  }
-
 
 // Chainlink VRF parameters
 VRFCoordinatorV2Interface COORDINATOR;
@@ -50,14 +51,16 @@ VRFConsumerBaseV2(_vrfCoordinator)
     keyHash = _keyHash;
     linkToken = _linkToken;
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
-       gameStarted = false;
+    gameStarted = false;
    }
 
     function createGame(uint _gameId, uint _entryFee) public onlyOwner {
         // Entry fee check
         require(_entryFee != 0, 'Entry fee must be greater than zero');
+
         // Game ID check
         require(gameEntryFee[_gameId] == 0, 'Game ID already exists');
+
         // Set the entry fee state variable
         entryFee = _entryFee; 
 
@@ -70,12 +73,45 @@ VRFConsumerBaseV2(_vrfCoordinator)
         // Emit the GameCreated event
         emit GameCreated(_gameId, _entryFee);
     }
-    
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
-    	randomWordsNum = randomWords [0];
-    	emit RequestFulFill(requestId, randomWords);
+
+function startGame(uint _gameId, uint _entryFee) public payable {
+        // Check if game exist       
+         require(gameEntryFee[_gameId] > 0, 'Game does not exist');
+
+        // Ensure sent value matches stored entry fee        
+        require(msg.value == gameEntryFee[_gameId], 'Entry fee does not match game entry fee');
+
+        // Check if player is not already registered
+        require(!playerInGame[gameId][msg.sender], ('Player is already registered in the game'));
+         
+        // Mark the player as registered
+        playerInGame[gameId][msg.sender] = true;
+
+        // Add the player to the game
+        gamePlayers[_gameId].push(msg.sender);
+
+        // Ensure no other game is currently in progress        
+        require(!gameStarted, 'Game has already started');
+
+        // Change game state to true
+        gameStarted = true;
+
+        // Emit event
+        emit GameInitiated(_gameId, _entryFee);
+
+        // Increment the game ID for the next game
+        gameId++; 
     }
 
+    function getGamePlayers(uint _gameId) public view returns (address[] memory) {
+        return gamePlayers[_gameId];
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
+        randomWordsNum = randomWords [0];
+        emit RequestFulFill(requestId, randomWords);
+    }
+    
      function getVRFCoordinator() public view returns (address) {
         return address(COORDINATOR);
     }
