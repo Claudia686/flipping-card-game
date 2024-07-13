@@ -74,34 +74,37 @@ VRFConsumerBaseV2(_vrfCoordinator)
         emit GameCreated(_gameId, _entryFee);
     }
 
-function startGame(uint _gameId, uint _entryFee) public payable {
+    function startGame(uint _gameId, uint _entryFee) public payable {
         // Check if game exist       
-         require(gameEntryFee[_gameId] > 0, 'Game does not exist');
+        require(gameEntryFee[_gameId] > 0, 'Game does not exist');
 
         // Ensure sent value matches stored entry fee        
         require(msg.value == gameEntryFee[_gameId], 'Entry fee does not match game entry fee');
 
         // Check if player is not already registered
         require(!playerInGame[gameId][msg.sender], ('Player is already registered in the game'));
-         
-        // Mark the player as registered
-        playerInGame[gameId][msg.sender] = true;
 
         // Add the player to the game
         gamePlayers[_gameId].push(msg.sender);
 
+          // Mark the player as registered
+        playerInGame[gameId][msg.sender] = true;
+
         // Ensure no other game is currently in progress        
         require(!gameStarted, 'Game has already started');
-
+        
+        // Check if there are enough players to start the game
+    if (gamePlayers[_gameId].length == 2) {
         // Change game state to true
         gameStarted = true;
 
         // Emit event
-        emit GameInitiated(_gameId, _entryFee);
+        emit GameInitiated(_gameId, gameEntryFee[_gameId]);
 
         // Increment the game ID for the next game
-        gameId++; 
+        gameId++;
     }
+}
 
     function getGamePlayers(uint _gameId) public view returns (address[] memory) {
         return gamePlayers[_gameId];
