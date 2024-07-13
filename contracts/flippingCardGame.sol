@@ -14,10 +14,12 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
   mapping(uint => address[]) public gamePlayers;
   mapping(uint => uint) public gameEntryFee;
   mapping(uint => mapping(address => bool)) public playerInGame;
+  mapping(uint => bool) public gameIsStopped;
 
   event RequestFulFill(uint256 requestId, uint256[] randomWords);
   event GameCreated(uint gameId, uint entryFee);
   event GameInitiated(uint gameId, uint entryFee);
+  event GameStopped(uint gameId);
 
   struct Player {
     address playerAddress; // The address of the player
@@ -67,6 +69,10 @@ VRFConsumerBaseV2(_vrfCoordinator)
         // Update the mapping with the new game ID and entry fee
         gameEntryFee[_gameId] = _entryFee; 
 
+        // Set isStopped to false
+        gameIsStopped[_gameId] = false;
+
+
         // Update the gameId state variable to the new game ID
         gameId = _gameId;
 
@@ -81,6 +87,10 @@ VRFConsumerBaseV2(_vrfCoordinator)
         // Ensure sent value matches stored entry fee        
         require(msg.value == gameEntryFee[_gameId], 'Entry fee does not match game entry fee');
 
+
+        // Check if the game is stopped
+        require(!gameIsStopped[_gameId], 'Game has been stopped');
+
         // Check if player is not already registered
         require(!playerInGame[gameId][msg.sender], ('Player is already registered in the game'));
 
@@ -92,7 +102,7 @@ VRFConsumerBaseV2(_vrfCoordinator)
 
         // Ensure no other game is currently in progress        
         require(!gameStarted, 'Game has already started');
-        
+
         // Check if there are enough players to start the game
     if (gamePlayers[_gameId].length == 2) {
         // Change game state to true
@@ -108,6 +118,23 @@ VRFConsumerBaseV2(_vrfCoordinator)
 
     function getGamePlayers(uint _gameId) public view returns (address[] memory) {
         return gamePlayers[_gameId];
+    }
+
+    function stopGame(uint _gameId) public onlyOwner {
+        // Check if game is started
+        require(gameStarted, 'Game is not started');
+
+        // Check if the game is already stopped
+        require(!gameIsStopped[_gameId], 'Game is already stopped');
+
+        // Update gameIsStopped State
+        gameIsStopped[_gameId] = true;
+
+        // Update gameStarted state
+        gameStarted = false;
+
+        // Emit an event
+        emit GameStopped(_gameId); 
     }
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 

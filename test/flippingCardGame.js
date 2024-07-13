@@ -155,7 +155,7 @@ describe('FlippingCardGame', () => {
                 await flippingCardGame.connect(player1).startGame(gameId, entryFee, {
                     value: entryFee
                 })
-                
+
                 const gameIdAfter = await flippingCardGame.gameId()
                 expect(gameIdAfter).be.equal(2)
             })
@@ -245,6 +245,58 @@ describe('FlippingCardGame', () => {
                 await expect(flippingCardGame.connect(player2).startGame(gameId, entryFee, {
                     value: entryFee
                 })).to.be.revertedWith('Game has already started');
+            })
+        })
+    })
+
+    describe('Stop Game', () => {
+        describe('Success', () => {
+            const gameId = 2
+            const entryFee = ethers.parseUnits('2', 'ether')
+
+            beforeEach(async () => {
+                // Create a game
+                const createNewGame = await flippingCardGame.connect(deployer).createGame(gameId, entryFee)
+                await createNewGame.wait()
+
+                // Start the game with two players
+                await flippingCardGame.connect(player).startGame(gameId, entryFee, {
+                    value: entryFee
+                })
+                await flippingCardGame.connect(player1).startGame(gameId, entryFee, {
+                    value: entryFee
+                })
+            })
+
+            it('Should stop the game successfully', async () => {
+                // Call the stopGame function
+                const stopGame = await flippingCardGame.connect(deployer).stopGame(gameId)
+                await stopGame.wait()
+
+                // Check state changes
+                expect(await flippingCardGame.gameStarted()).to.be.false
+                expect(await flippingCardGame.gameIsStopped(gameId)).to.be.true
+
+                // Verify the event is emitted with the correct arguments
+                await expect(stopGame).to.emit(flippingCardGame, 'GameStopped').withArgs(gameId)
+            })
+
+            it('Should retain player registration status after stopping the game', async () => {
+                // Call the stopGame function
+                await flippingCardGame.connect(deployer).stopGame(gameId)
+
+                const isPlayerRegistered = await flippingCardGame.playerInGame(gameId, player.address)
+                const isPlayer1Registered = await flippingCardGame.playerInGame(gameId, player1.address)
+
+                expect(isPlayerRegistered).to.be.true
+                expect(isPlayer1Registered).to.be.true
+            })
+        })
+
+        describe('Failure', () => {
+            const gameId = 2
+            it('Rejects non-owner calling stopGame function', async () => {
+                await expect(flippingCardGame.connect(player1).stopGame(gameId)).to.be.reverted;
             })
         })
     })
