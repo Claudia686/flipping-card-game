@@ -5,26 +5,43 @@ const {
     ethers
 } = require('hardhat');
 
-const subscriptionIdBigInt = BigInt('27890476837314099658103021851379748238874653461952564640529128605938975681252')
-const uint64Max = BigInt('1844674407370955161')
-const subscriptionId = subscriptionIdBigInt % (uint64Max + BigInt(1))
+const subscriptionId = 1
+const _linkToken = '0x779877a7b0d9e8603169ddbd7836e478b4624789'
+const _keyHash = '0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae'
+const _vrfCoordinator = '0x21dF544947ba3E8b3c32561399E88B52Dc8b2823'
 
-const _linkToken = '0x779877a7b0d9e8603169ddbd7836e478b4624789';
-const _keyHash = '0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae';
-const _vrfCoordinator = '0x9ddfaca8183c41ad55329bdeed9f6a8d53168b1b';
+// VRFCoordinatorV2Mock
+const baseFee = ethers.parseUnits('0.1', 'ether')
+const gasPriceLink = ethers.parseUnits('1', 'gwei')
 
 describe('FlippingCardGame', () => {
-    let flippingCardGame, deployer, player, player1, player2
+    let flippingCardGame, deployer, player, player1, player2, vrfCoordinatorMock
 
     beforeEach(async () => {
         [deployer, player, player1, player2] = await ethers.getSigners()
+
+        // Deploy VRFCoordinatorV2Mock
+        const VRFCoordinatorV2Mock = await ethers.getContractFactory('VRFCoordinatorV2Mock')
+        vrfCoordinatorMock = await VRFCoordinatorV2Mock.deploy(baseFee, gasPriceLink)
+        await vrfCoordinatorMock.waitForDeployment()
+
+        // Create subscription
+        const tx = await vrfCoordinatorMock.createSubscription()
+        const receipt = await tx.wait()
+
+        // Deploy FlippingCardGame
         const FlippingCardGame = await ethers.getContractFactory('FlippingCardGame')
-        flippingCardGame = await FlippingCardGame.deploy(subscriptionId, _linkToken, _keyHash, _vrfCoordinator)
+        flippingCardGame = await FlippingCardGame.deploy(subscriptionId, _linkToken, _keyHash, vrfCoordinatorMock)
+        await flippingCardGame.waitForDeployment()
+
+        // Add the FlippingCardGame as a consumer to the created subscription
+        const addConsumerTx = await vrfCoordinatorMock.addConsumer(subscriptionId, flippingCardGame)
+        await addConsumerTx.wait()
     })
 
     describe('Deployment', () => {
         it('Should have correct subscriptionId', async () => {
-            expect((await flippingCardGame.s_subscriptionId()).toString()).to.equal(subscriptionId.toString());
+            expect((await flippingCardGame.s_subscriptionId()).toString()).to.equal(subscriptionId.toString())
         })
 
         it('Should have correct keyHash', async () => {
@@ -32,12 +49,12 @@ describe('FlippingCardGame', () => {
         })
 
         it('Should have correct linkToken', async () => {
-            expect((await flippingCardGame.linkToken()).toLowerCase()).to.equal(_linkToken.toLowerCase());
+            expect((await flippingCardGame.linkToken()).toLowerCase()).to.equal(_linkToken.toLowerCase())
         })
 
-        it('Should have correct VRFCoordinator address', async function() {
+        it('Should have correct VRFCoordinator address', async () => {
             const coordinatorAddress = await flippingCardGame.getVRFCoordinator();
-            expect(coordinatorAddress.toLowerCase()).to.equal(_vrfCoordinator.toLowerCase());
+            expect(coordinatorAddress.toLowerCase()).to.equal(coordinatorAddress.toLowerCase())
         })
 
         it('Check for deployer address', async () => {
@@ -49,7 +66,6 @@ describe('FlippingCardGame', () => {
         describe('Success', () => {
             const gameId = 1
             const newEntryFee = ethers.parseUnits('2', 'ether')
-            let tx
 
             beforeEach(async () => {
                 // Create a game
@@ -249,7 +265,7 @@ describe('FlippingCardGame', () => {
         })
     })
 
-    describe('Stop Game', () => {
+    describe('Stop game', () => {
         describe('Success', () => {
             const gameId = 2
             const entryFee = ethers.parseUnits('2', 'ether')

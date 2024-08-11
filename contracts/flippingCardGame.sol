@@ -16,27 +16,27 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
   mapping(uint => mapping(address => bool)) public playerInGame;
   mapping(uint => bool) public gameIsStopped;
 
-  event RequestFulFill(uint256 requestId, uint256[] randomWords);
   event GameCreated(uint gameId, uint entryFee);
   event GameInitiated(uint gameId, uint entryFee);
   event GameStopped(uint gameId);
+  event RequestFulFill(uint256 requestId, uint256[] randomWords);
 
   struct Player {
     address playerAddress; // The address of the player
     uint gameId;  // The ID of the game
     uint entryFee; // The entry fee paid by the player
- }
+ } 
 
 // Chainlink VRF parameters
 VRFCoordinatorV2Interface COORDINATOR;
     uint64 public s_subscriptionId;
     bytes32 public keyHash;
     address public linkToken;
-    uint64 public callbackGasLimit = 150000;
+    uint32 public callbackGasLimit = 150000;
     uint16 public requestConfirmations = 3;
     uint32 public numWords = 1;
     uint public randomWordsNum; // Select a winner
-
+ 
 constructor (
     uint64  subscriptionId,
     address _linkToken,
@@ -137,15 +137,13 @@ VRFConsumerBaseV2(_vrfCoordinator)
         emit GameStopped(_gameId); 
     }
 
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
+     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
         randomWordsNum = randomWords [0];
         emit RequestFulFill(requestId, randomWords);
     }
-    
+
      function getVRFCoordinator() public view returns (address) {
         return address(COORDINATOR);
-    }
+    }   
 }
-
-
 
