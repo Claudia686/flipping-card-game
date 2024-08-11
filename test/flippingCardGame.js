@@ -316,4 +316,11 @@ describe('FlippingCardGame', () => {
             })
         })
     })
+
+    describe('Request random words', () => {
+        it('Should request random words', async () => {
+            tx = await flippingCardGame.connect(deployer).requestRandomWords()
+            await tx.wait()
+        })
+    })
 })

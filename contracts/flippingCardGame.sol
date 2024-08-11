@@ -137,6 +137,17 @@ VRFConsumerBaseV2(_vrfCoordinator)
         emit GameStopped(_gameId); 
     }
 
+    function requestRandomWords() external onlyOwner {
+        uint256 requestId = COORDINATOR.requestRandomWords(
+        keyHash,             
+        s_subscriptionId,    
+        requestConfirmations, 
+        callbackGasLimit,     
+        numWords    
+      );
+         require(requestId > 0, "Request ID should be valid");
+    }
+
      function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
         randomWordsNum = randomWords [0];
         emit RequestFulFill(requestId, randomWords);
