@@ -318,9 +318,20 @@ describe('FlippingCardGame', () => {
     })
 
     describe('Request random words', () => {
-        it('Should request random words', async () => {
-            tx = await flippingCardGame.connect(deployer).requestRandomWords()
-            await tx.wait()
+        describe('Success', () => {
+            it('Should request random words', async () => {
+                tx = await flippingCardGame.connect(deployer).requestRandomWords()
+                await tx.wait()
+            })
+        })
+
+        describe('Failure', () => {
+            it('Rejects multyple requests', async () => {
+                tx = await flippingCardGame.connect(deployer).requestRandomWords()
+                await tx.wait()
+                await expect(flippingCardGame.connect(deployer).requestRandomWords())
+                    .to.be.revertedWith('Previous request still in progress');
+            })
         })
     })
 })

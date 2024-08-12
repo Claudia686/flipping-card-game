@@ -9,6 +9,7 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     bool public gameStarted;
 	uint public entryFee;
 	uint public gameId;
+    bool public requestInProgress;
   
   mapping(address => Player) public players;
   mapping(uint => address[]) public gamePlayers;
@@ -19,7 +20,6 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
   event GameCreated(uint gameId, uint entryFee);
   event GameInitiated(uint gameId, uint entryFee);
   event GameStopped(uint gameId);
-  event RequestFulFill(uint256 requestId, uint256[] randomWords);
 
   struct Player {
     address playerAddress; // The address of the player
@@ -34,8 +34,9 @@ VRFCoordinatorV2Interface COORDINATOR;
     address public linkToken;
     uint32 public callbackGasLimit = 150000;
     uint16 public requestConfirmations = 3;
-    uint32 public numWords = 1;
-    uint public randomWordsNum; // Select a winner
+    uint32 public numWords = 2;
+    uint256 public randomWordsNum1; 
+    uint256 public randomWordsNum2; 
  
 constructor (
     uint64  subscriptionId,
@@ -53,7 +54,9 @@ VRFConsumerBaseV2(_vrfCoordinator)
     keyHash = _keyHash;
     linkToken = _linkToken;
     COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
+
     gameStarted = false;
+    requestInProgress = false;
    }
 
     function createGame(uint _gameId, uint _entryFee) public onlyOwner {
@@ -72,7 +75,6 @@ VRFConsumerBaseV2(_vrfCoordinator)
         // Set isStopped to false
         gameIsStopped[_gameId] = false;
 
-
         // Update the gameId state variable to the new game ID
         gameId = _gameId;
 
@@ -86,7 +88,6 @@ VRFConsumerBaseV2(_vrfCoordinator)
 
         // Ensure sent value matches stored entry fee        
         require(msg.value == gameEntryFee[_gameId], 'Entry fee does not match game entry fee');
-
 
         // Check if the game is stopped
         require(!gameIsStopped[_gameId], 'Game has been stopped');
@@ -115,7 +116,6 @@ VRFConsumerBaseV2(_vrfCoordinator)
         gameId++;
     }
 }
-
     function getGamePlayers(uint _gameId) public view returns (address[] memory) {
         return gamePlayers[_gameId];
     }
@@ -138,6 +138,8 @@ VRFConsumerBaseV2(_vrfCoordinator)
     }
 
     function requestRandomWords() external onlyOwner {
+        require(!requestInProgress, 'Previous request still in progress');
+
         uint256 requestId = COORDINATOR.requestRandomWords(
         keyHash,             
         s_subscriptionId,    
@@ -145,16 +147,17 @@ VRFConsumerBaseV2(_vrfCoordinator)
         callbackGasLimit,     
         numWords    
       );
-         require(requestId > 0, "Request ID should be valid");
+        require(requestId > 0, "Request ID should be valid");
+        requestInProgress = true;
     }
 
-     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
         randomWordsNum = randomWords [0];
         emit RequestFulFill(requestId, randomWords);
     }
 
      function getVRFCoordinator() public view returns (address) {
         return address(COORDINATOR);
-    }   
+     }
 }
 
