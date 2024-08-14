@@ -60,6 +60,9 @@ VRFConsumerBaseV2(_vrfCoordinator)
    }
 
     function createGame(uint _gameId, uint _entryFee) public onlyOwner {
+        // Check if a request is in progress
+        require(!requestInProgress, 'Cannot start a new game while a request is in progress');
+
         // Entry fee check
         require(_entryFee != 0, 'Entry fee must be greater than zero');
 
@@ -138,6 +141,7 @@ VRFConsumerBaseV2(_vrfCoordinator)
     }
 
     function requestRandomWords() external onlyOwner {
+        // Restrict to one request at a time
         require(!requestInProgress, 'Previous request still in progress');
 
         uint256 requestId = COORDINATOR.requestRandomWords(
@@ -152,12 +156,21 @@ VRFConsumerBaseV2(_vrfCoordinator)
     }
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override { 
-        randomWordsNum = randomWords [0];
-        emit RequestFulFill(requestId, randomWords);
+        randomWordsNum1 = randomWords[0];
+        randomWordsNum2 = randomWords[1];
+        requestInProgress = false;
     }
 
-     function getVRFCoordinator() public view returns (address) {
-        return address(COORDINATOR);
-     }
-}
+    function setIdToRandomWords(uint256 requestId ,uint256 num1, uint256 num2) public {
+        randomWordsNum1 = num1;
+        randomWordsNum2 = num2;
+    }
 
+    function getRandomWords() public view returns (uint256, uint256) {
+        return (randomWordsNum1, randomWordsNum2);
+   } 
+
+    function getVRFCoordinator() public view returns (address) {
+        return address(COORDINATOR);
+    }  
+}

@@ -330,8 +330,22 @@ describe('FlippingCardGame', () => {
                 tx = await flippingCardGame.connect(deployer).requestRandomWords()
                 await tx.wait()
                 await expect(flippingCardGame.connect(deployer).requestRandomWords())
-                    .to.be.revertedWith('Previous request still in progress');
+                .to.be.revertedWith('Previous request still in progress');
             })
+        })
+    })
+
+    describe('Fulfill Random words', () => {
+        it('Should return the correct random words', async () => {
+            const randomWordsId = 1
+            const expectedNum1 = 5
+            const expectedNum2 = 6
+
+            await flippingCardGame.setIdToRandomWords(randomWordsId, expectedNum1, expectedNum2)
+            const result = await flippingCardGame.getRandomWords()
+
+            expect(result[0]).to.equal(expectedNum1)
+            expect(result[1]).to.equal(expectedNum2)
         })
     })
 })
