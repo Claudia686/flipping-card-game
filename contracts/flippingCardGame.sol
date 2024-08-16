@@ -10,6 +10,8 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
 	uint public entryFee;
 	uint public gameId;
     bool public requestInProgress;
+    address public winner;
+    address public loser;
   
   mapping(address => Player) public players;
   mapping(uint => address[]) public gamePlayers;
@@ -173,4 +175,31 @@ VRFConsumerBaseV2(_vrfCoordinator)
     function getVRFCoordinator() public view returns (address) {
         return address(COORDINATOR);
     }  
-}
+
+     function flipCard(uint _gameId) public {     
+        // Retrieve player addresses from the current game
+        address player1 = gamePlayers[_gameId][0];
+        address player2 = gamePlayers[_gameId][1];
+
+        // Get andom numbers to a range of 1 to 10
+        uint256 randomValue1 = (randomWordsNum1 % 10) + 1;
+        uint256 randomValue2 = (randomWordsNum2 % 10) + 1;
+
+        if (randomValue1 > randomValue2) {
+            winner = player1;
+            loser = player2;
+            } else {
+                winner = player2;
+                loser = player1;
+            }
+
+        // Mark the game as finished 
+        gameStarted = false;   
+        
+        // Reset random numbers for the next game
+        randomWordsNum1 = 0;
+        randomWordsNum2 = 0;
+     }
+ }
+
+

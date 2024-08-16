@@ -330,7 +330,7 @@ describe('FlippingCardGame', () => {
                 tx = await flippingCardGame.connect(deployer).requestRandomWords()
                 await tx.wait()
                 await expect(flippingCardGame.connect(deployer).requestRandomWords())
-                .to.be.revertedWith('Previous request still in progress');
+                    .to.be.revertedWith('Previous request still in progress');
             })
         })
     })
@@ -348,4 +348,52 @@ describe('FlippingCardGame', () => {
             expect(result[1]).to.equal(expectedNum2)
         })
     })
+
+    describe('Flip card', () => {
+        describe('Success', () => {
+            const gameId = 1
+            const entryFee = ethers.parseUnits('5', 'ether')
+
+            beforeEach(async () => {
+                // Create a game
+                await flippingCardGame.connect(deployer).createGame(gameId, entryFee)
+
+                // Player1 start game
+                await flippingCardGame.connect(player1).startGame(gameId, entryFee, {
+                    value: entryFee
+                })
+
+                // Player2 start game
+                await flippingCardGame.connect(player2).startGame(gameId, entryFee, {
+                    value: entryFee
+                })
+
+                // Set random numbers
+                await flippingCardGame.setIdToRandomWords(gameId, 9, 3)
+            })
+
+            it('Get the winner', async () => {
+                const players = await flippingCardGame.getGamePlayers(gameId)
+                await flippingCardGame.flipCard(gameId)
+                const getWinner = await flippingCardGame.winner()
+
+                const expectedWinner = player1.address
+                expect(getWinner).to.equal(expectedWinner)
+            })
+
+            it('Reset game state after a successful flip', async () => {
+                await flippingCardGame.flipCard(gameId)
+                const gameStatus = await flippingCardGame.gameStarted()
+                expect(gameStatus).to.be.false;
+            })
+
+            it('Reset random numbers', async () => {
+                await flippingCardGame.flipCard(gameId)
+                const result = await flippingCardGame.getRandomWords()
+                expect(Number(result[0])).to.equal(0);
+                expect(Number(result[1])).to.equal(0);
+            })
+        })
+    })
+
 })
