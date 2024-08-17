@@ -35,6 +35,7 @@ describe('FlippingCardGame', () => {
         await flippingCardGame.waitForDeployment()
 
         // Add the FlippingCardGame as a consumer to the created subscription
+        const contracAddress = await flippingCardGame.getAddress();
         const addConsumerTx = await vrfCoordinatorMock.addConsumer(subscriptionId, flippingCardGame)
         await addConsumerTx.wait()
     })
@@ -350,50 +351,98 @@ describe('FlippingCardGame', () => {
     })
 
     describe('Flip card', () => {
-        describe('Success', () => {
-            const gameId = 1
-            const entryFee = ethers.parseUnits('5', 'ether')
+        const gameId = 1
+        const entryFee = ethers.parseUnits('10', 'ether')
 
-            beforeEach(async () => {
-                // Create a game
-                await flippingCardGame.connect(deployer).createGame(gameId, entryFee)
+        beforeEach(async () => {
+            // Create a game
+            await flippingCardGame.connect(deployer).createGame(gameId, entryFee)
 
-                // Player1 start game
-                await flippingCardGame.connect(player1).startGame(gameId, entryFee, {
-                    value: entryFee
-                })
-
-                // Player2 start game
-                await flippingCardGame.connect(player2).startGame(gameId, entryFee, {
-                    value: entryFee
-                })
-
-                // Set random numbers
-                await flippingCardGame.setIdToRandomWords(gameId, 9, 3)
+            // Player1 starts the game
+            await flippingCardGame.connect(player1).startGame(gameId, entryFee, {
+                value: entryFee
             })
 
-            it('Get the winner', async () => {
-                const players = await flippingCardGame.getGamePlayers(gameId)
-                await flippingCardGame.flipCard(gameId)
-                const getWinner = await flippingCardGame.winner()
-
-                const expectedWinner = player1.address
-                expect(getWinner).to.equal(expectedWinner)
+            // Player2 starts the game
+            await flippingCardGame.connect(player2).startGame(gameId, entryFee, {
+                value: entryFee
             })
 
-            it('Reset game state after a successful flip', async () => {
-                await flippingCardGame.flipCard(gameId)
-                const gameStatus = await flippingCardGame.gameStarted()
-                expect(gameStatus).to.be.false;
-            })
+            // Set random numbers
+            await flippingCardGame.setIdToRandomWords(gameId, 9, 3)
+        })
 
-            it('Reset random numbers', async () => {
-                await flippingCardGame.flipCard(gameId)
-                const result = await flippingCardGame.getRandomWords()
-                expect(Number(result[0])).to.equal(0);
-                expect(Number(result[1])).to.equal(0);
-            })
+        it('Get the winner', async () => {
+            // Retrieve the players in the game
+            const players = await flippingCardGame.getGamePlayers(gameId)
+
+            // Flipping the card to determine the winner
+            await flippingCardGame.flipCard(gameId)
+
+            // Verify that player1 is the winner
+            const getWinner = await flippingCardGame.winner()
+            const expectedWinner = player1.address
+            expect(getWinner).to.equal(expectedWinner)
+        })
+
+        it('Reset game state after a successful flip', async () => {
+            // Check if the game state is resets
+            await flippingCardGame.flipCard(gameId)
+            const gameStatus = await flippingCardGame.gameStarted()
+            expect(gameStatus).to.be.false;
+        })
+
+        it('Reset random numbers', async () => {
+            // Check if the random numbers are reset to zero
+            await flippingCardGame.flipCard(gameId)
+            const result = await flippingCardGame.getRandomWords()
+            expect(Number(result[0])).to.equal(0);
+            expect(Number(result[1])).to.equal(0);
         })
     })
 
+    describe('Distribute prize', () => {
+        const gameId = 1
+        const entryFee = ethers.parseUnits('10', 'ether')
+
+        beforeEach(async () => {
+            // Create a game
+            await flippingCardGame.connect(deployer).createGame(gameId, entryFee)
+
+            // Player1 starts the game
+            await flippingCardGame.connect(player1).startGame(gameId, entryFee, {
+                value: entryFee
+            })
+
+            // Player2 starts the game
+            await flippingCardGame.connect(player2).startGame(gameId, entryFee, {
+                value: entryFee
+            })
+
+            // Set random numbers
+            await flippingCardGame.setIdToRandomWords(gameId, 9, 3)
+        })
+
+        it('Distribute the prize to the winner', async () => {
+            const players = await flippingCardGame.getGamePlayers(gameId)
+
+            await flippingCardGame.flipCard(gameId)
+            // Get contract balance before the prize distribution
+            const contractBalanceBefore = await ethers.provider.getBalance(await flippingCardGame.getAddress());
+
+            // Get player1 balance before the prize distribution
+            const player1BalanceBefore = await ethers.provider.getBalance(player1.address);
+
+            // Distribute the prize to the winner
+            await flippingCardGame.distributePrize()
+
+            // Get contract balance after the prize distribution
+            const contractBalanceAfter = await ethers.provider.getBalance(await flippingCardGame.getAddress())
+            expect(contractBalanceAfter).to.equal(0);
+
+            // Get player1 balance after the prize distribution
+            const winnerBalanceAfter = await ethers.provider.getBalance(player1.address)
+            expect(winnerBalanceAfter).to.be.greaterThan(player1BalanceBefore.toString())
+        })
+    })
 })

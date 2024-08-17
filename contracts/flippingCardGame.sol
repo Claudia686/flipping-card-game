@@ -200,6 +200,18 @@ VRFConsumerBaseV2(_vrfCoordinator)
         randomWordsNum1 = 0;
         randomWordsNum2 = 0;
      }
+
+     function distributePrize() external {
+        uint256 totalPrize = address(this).balance;
+        // Ensure there are funds to transfer
+        require(totalPrize > 0, 'No funds to transfer');
+
+        // Transfer the total prize to the winner
+        (bool success, ) = payable(winner).call{value: totalPrize}('');
+
+        // Check if the transfer was successful
+        require(success, 'Transaction failed');
+     } 
  }
 
 
