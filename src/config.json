@@ -1,0 +1,22 @@
+ {
+  "31337": {
+    "VRFCoordinatorV2Mock": {
+      "address": "0x303ad33E27c2D0FA32da483599e09313A8F64393"
+    },
+
+    "FlippingCardGame": {
+      "address": "0x0a5b2F4f9823E5fBfEe254c291B3D7E5aDE9f0CB"
+    }
+  },
+
+  "300": {
+    "VRFCoordinatorV2Mock": {
+      "address": "0x0D8bE4417cACF77e5c831d05469eCF29f9AE35ba"
+    },
+
+    "FlippingCardGame": {
+      "address": "0x2b61eA2c12947Ea655B80c213E86982630588253"
+    }
+  }
+}
+
