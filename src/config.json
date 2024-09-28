@@ -1,21 +1,21 @@
  {
   "31337": {
     "VRFCoordinatorV2Mock": {
-      "address": "0x303ad33E27c2D0FA32da483599e09313A8F64393"
+      "address": "0x8C522F5aF6f9C4c875A2e5D1a1A7c954f486c772"
     },
 
     "FlippingCardGame": {
-      "address": "0x0a5b2F4f9823E5fBfEe254c291B3D7E5aDE9f0CB"
+      "address": "0xC524e2134b77A48589c050F5959bd1ee7CbcCA7C"
     }
   },
 
   "300": {
     "VRFCoordinatorV2Mock": {
-      "address": "0x0D8bE4417cACF77e5c831d05469eCF29f9AE35ba"
+      "address": "0x0eD56405A8bd5Cd9E8C37F9C00c0Ce5b403e240C"
     },
 
     "FlippingCardGame": {
-      "address": "0x2b61eA2c12947Ea655B80c213E86982630588253"
+      "address": "0x6a6f253A0a3Ac24053C34691bB3412c2405c1aAc"
     }
   }
 }

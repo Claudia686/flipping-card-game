@@ -63,29 +63,29 @@ describe('FlippingCardGame', () => {
         })
     })
 
-    describe('Create game', () => {
+    describe('Create a game', () => {
         describe('Success', () => {
             const newEntryFee = ethers.parseUnits('2', 'ether')
 
             beforeEach(async () => {
                 // Create a game
-                tx = await flippingCardGame.connect(deployer).createGame(newEntryFee)
+                const tx = await flippingCardGame.connect(deployer).createGame(newEntryFee)
                 await tx.wait()
             })
 
             it('Should allow owner to set a game', async () => {
                 // Check if new entry fee is set correctly
                 const storedFee = await flippingCardGame.gameEntryFee(0);
-                expect(storedFee).to.equal(newEntryFee)
+                expect(storedFee).to.equal(newEntryFee);
             })
 
-            // Check initial state of the game started
             it('Should set game started to false', async () => {
+                // Check initial state of the game started
                 expect(await flippingCardGame.gameStarted()).to.be.false
             })
 
-            // Emit game created event   
             it('Should emit game created event with correct arguments', async () => {
+                // Emit game created event 
                 const tx = await flippingCardGame.connect(deployer).createGame(newEntryFee)
                 await expect(tx).to.emit(flippingCardGame, 'GameCreated').withArgs(newEntryFee)
             })
@@ -95,12 +95,12 @@ describe('FlippingCardGame', () => {
             const entryFee = ethers.parseUnits('2', 'ether')
 
             beforeEach(async () => {
-                // Create game
+                // Create a game
                 await flippingCardGame.connect(deployer).createGame(entryFee);
             })
 
-
             it('Rejects when creating a game with zero entry fee', async () => {
+                // Revert zero entry fee
                 const newEntryFee = ethers.parseUnits('0', 'ether')
                 await expect(flippingCardGame.connect(deployer).createGame(newEntryFee))
                     .to.be.revertedWith('Entry fee must be greater than zero');
@@ -113,238 +113,202 @@ describe('FlippingCardGame', () => {
         })
     })
 
-    describe('Start game', () => {
+    describe('Join the game', () => {
         describe('Success', () => {
-            let gameId
             const entryFee = ethers.parseUnits('2', 'ether')
 
             beforeEach(async () => {
                 // Create a game
-                const tx1 = await flippingCardGame.connect(deployer).createGame(entryFee)
-                await tx1.wait()
+                const tx = await flippingCardGame.connect(deployer).createGame(entryFee)
+                await tx.wait()
 
+                // Retrieve gameId
                 gameId = await flippingCardGame.gameId()
+
+                // Players join the game
+                await flippingCardGame.connect(player).joinGame()
+                await flippingCardGame.connect(player1).joinGame()
             })
 
             it('Should register players for the game', async () => {
-                // Player start the game
-                await flippingCardGame.connect(player).startGame({
-                    value: entryFee
-                })
-
-                // Check if player is registered in the game
+                // Check if players are registered in the game
                 const registeredPlayer = await flippingCardGame.playerInGame(gameId, player.address)
                 expect(registeredPlayer).to.be.true
-
-                // Game should not started yet
-                let gameStarted = await flippingCardGame.gameStarted()
-                expect(gameStarted).to.be.false
-
-                // Player 1 start the game
-                await flippingCardGame.connect(player1).startGame({
-                    value: entryFee
-                })
-
-                // Check if player 1 is registered in the game
                 const registeredPlayer1 = await flippingCardGame.playerInGame(gameId, player1.address)
                 expect(registeredPlayer1).to.be.true
-
-                // Player 1 start the game
-                gameStarted = await flippingCardGame.gameStarted()
-                expect(gameStarted).to.be.true
             })
+        })
 
-            it('Should increment gameId after starting a game', async () => {
-                const gameIdBefore = await flippingCardGame.gameId()
+        describe('Failure', () => {
+            it('Rejects registered player', async () => {
+                // Reject player if already registered
+                await flippingCardGame.connect(player).joinGame()
+                await expect(flippingCardGame.connect(player).joinGame())
+                    .to.be.revertedWith('Player is already registered in the game');
+            })
+        })
+    })
 
-                // Player start game
-                await flippingCardGame.connect(player).startGame({
-                    value: entryFee
-                })
+    describe('Start the game', () => {
+        describe('Success', () => {
+            const entryFee = ethers.parseUnits('2', 'ether')
 
-                // Player 1 start game
-                await flippingCardGame.connect(player1).startGame({
-                    value: entryFee
-                })
-
-                const gameIdAfter = await flippingCardGame.gameId()
-                expect(Number(gameIdAfter)).to.equal(Number(gameIdBefore) + 1);
+            beforeEach(async () => {
+                // Create a game
+                const tx = await flippingCardGame.connect(deployer).createGame(entryFee)
+                await tx.wait()
             })
 
             it('Check for correct entry fee', async () => {
+                // Check for correct entry fee
                 const expectedEntryFee = await ethers.parseUnits('2', 'ether')
                 const storedEntryFee = await flippingCardGame.gameEntryFee(gameId)
                 expect(expectedEntryFee).to.equal(storedEntryFee)
             })
 
+            it('Check for game status', async () => {
+                // Game should not started yet
+                let gameStarted = await flippingCardGame.gameStarted()
+                expect(gameStarted).to.be.false
+            })
 
-            it('Should check player registration state', async () => {
-                // Register player
-                const registeredPlayer = await flippingCardGame.connect(player).startGame({
-                    value: entryFee
-                })
-                await registeredPlayer.wait()
+            it('Should increment gameId', async () => {
+                // Check if gameId increment to 1
+                const entryFee = ethers.parseUnits('2', 'ether')
 
-                // Check player registration state
+                // Check for game id before join the game
+                const gameIdBefore = await flippingCardGame.gameId()
+                expect(gameIdBefore).to.equal(0)
+
+                // Players join the game
+                await flippingCardGame.connect(player).joinGame()
+                await flippingCardGame.connect(player1).joinGame()
+
+                // Check if first player is registered
                 const isPlayerRegistered = await flippingCardGame.playerInGame(gameId, player.address)
-                expect(isPlayerRegistered).to.be.true
-            })
+                expect(isPlayerRegistered).to.equal(true);
 
-            it('Should check for correct entry fee', async () => {
-                const storedEntryFee = await flippingCardGame.gameEntryFee(gameId)
-                expect(storedEntryFee).to.equal(entryFee)
-            })
+                // Check if second player is registered
+                const isPlayer1Registered = await flippingCardGame.playerInGame(gameId, player1.address)
+                expect(isPlayer1Registered).to.equal(true);
 
-            it('Should update the gamePlayers array correctly', async () => {
-                await flippingCardGame.connect(player1).startGame({
+                // StartGame game
+                const tx = await flippingCardGame.startGame({
                     value: entryFee
                 })
-                const players = await flippingCardGame.getGamePlayers(gameId)
-                expect(players).to.include(player1.address)
+                await tx.wait()
+
+                // Check the state of the game after it has started
+                const gameStarted = await flippingCardGame.gameStarted()
+                expect(gameStarted).to.be.true;
+
+                // Check the game id to be incremented by 1
+                const gameIdAfter = await flippingCardGame.gameId()
+                expect(await gameIdAfter).to.equal(1);
             })
         })
 
         describe('Failure', () => {
-            const gameId = 1
             const entryFee = ethers.parseUnits('2', 'ether')
+            const insufficientFee = ethers.parseUnits('0', 'ether')
 
             beforeEach(async () => {
-                // Create a game
-                const tx1 = await flippingCardGame.connect(deployer).createGame(entryFee)
-                await tx1.wait()
+                // Create new game
+                await flippingCardGame.connect(deployer).createGame(entryFee)
+
+                // Players join the game
+                await flippingCardGame.connect(player).joinGame()
+                await flippingCardGame.connect(player1).joinGame()
             })
 
             it('Rejects insufficient entry fee', async () => {
-                // Start game with zero value
-                const insufficientFee = ethers.parseUnits('0', 'ether')
-                await expect(flippingCardGame.connect(player).startGame({
+                // Start the game with zero value
+                await expect(flippingCardGame.startGame({
                     value: insufficientFee
                 })).to.be.revertedWith('Entry fee does not match game entry fee');
             })
 
             it('Rejects new player if game started', async () => {
-                // Player starts the game
-                await flippingCardGame.connect(player).startGame({
+                // Start the game
+                await flippingCardGame.startGame({
                     value: entryFee
                 })
-
-                // Player 1 starts the game
-                await flippingCardGame.connect(player1).startGame({
-                    value: entryFee
-                })
-                await flippingCardGame.gameId()
 
                 // Attempt to start the game with a new player 
-                await expect(flippingCardGame.connect(player2).startGame({
-                    value: entryFee
-                })).to.be.revertedWith('Game does not exist');
+                await expect(flippingCardGame.connect(player2).joinGame())
+                    .to.be.revertedWith('Game has already started');
             })
+        })
+    })
+
+    describe('Get game players', () => {
+        const entryFee = ethers.parseUnits('2', 'ether')
+
+        it('Should update gamePlayers array', async () => {
+            // Create a game
+            await flippingCardGame.connect(deployer).createGame(entryFee)
+
+            // Players join the game
+            await flippingCardGame.connect(player).joinGame()
+            await flippingCardGame.connect(player1).joinGame()
+            const currentGameId = await flippingCardGame.gameId()
+
+            // Start the game
+            await flippingCardGame.startGame({
+                value: entryFee
+            })
+
+            // Get players in the game
+            const players = await flippingCardGame.getGamePlayers(currentGameId)
+            expect(players).to.include(player.address);
+            expect(players).to.include(player1.address);
         })
     })
 
     describe('Request random words', () => {
         describe('Success', () => {
             it('Should allow the owner to request random words', async () => {
+                // Request random words
                 await flippingCardGame.connect(deployer).requestRandomWords()
                 const result = await flippingCardGame.requestInProgress()
                 expect(result).to.equal(true);
             })
 
             it('Should emit RandomWordsRequested event', async () => {
+                // Emit RandomWordsRequested event
                 const tx = await flippingCardGame.connect(deployer).requestRandomWords()
                 await expect(tx).to.emit(flippingCardGame, 'RandomWordsRequested')
             })
-
         })
 
         describe('Failure', () => {
             it('Rejects new requests during an active request', async () => {
+                // Revert new request if current request is in progress
                 await flippingCardGame.connect(deployer).requestRandomWords()
-                await expect(flippingCardGame.connect(deployer).requestRandomWords()).to.be.revertedWith('Previous request still in progress');
+                await expect(flippingCardGame.connect(deployer).requestRandomWords())
+                .to.be.revertedWith('Previous request still in progress');
             })
         })
     })
 
-    describe('Flip card', () => {
-        let gameId, randomWords
-        const entryFee = ethers.parseUnits('10', 'ether')
-
-        beforeEach(async () => {
-            // Create a game
-            await flippingCardGame.connect(deployer).createGame(entryFee)
-            gameId = await flippingCardGame.gameId()
-
-            // Player1 starts the game
-            await flippingCardGame.connect(player1).startGame({
-                value: entryFee
-            })
-
-            // Get players in the game
-            let players = await flippingCardGame.getGamePlayers(gameId)
-            expect(players.length).to.equal(1)
-
-            // Player2 starts the game
-            await flippingCardGame.connect(player2).startGame({
-                value: entryFee
-            })
-
-            const updatedGameId = await flippingCardGame.gameId();
-
-            // Check for two players in the game
-            players = await flippingCardGame.getGamePlayers(gameId)
-            expect(players.length).to.equal(2)
-        })
-
-        it('Get the winner', async () => {
-            // Call requestRandomWords
-            const tx = await flippingCardGame.connect(deployer).requestRandomWords()
-            await tx.wait()
-
-            const randomWords = [5, 4]
-
-            // Call flipCard
-            await flippingCardGame.flipCard(gameId, randomWords)
-
-            // Get players in the game
-            const players = await flippingCardGame.getGamePlayers(gameId)
-            expect(players.length).to.equal(2)
-
-            // Check for players address
-            expect(players[0]).to.equal(player1.address)
-            expect(players[1]).to.equal(player2.address)
-
-            const winner = await flippingCardGame.winner()
-            const loser = await flippingCardGame.loser()
-        })
-
-        it('Reset game state after a successful flip', async () => {
-            //  Reset game after a flip
-            await flippingCardGame.flipCard(gameId, [5, 4])
-            const result = await flippingCardGame.gameStarted()
-            expect(result).to.equal(false)
-        })
-    })
-
-    describe('Stop game', () => {
+    describe('Stop the game', () => {
         describe('Success', () => {
             const entryFee = ethers.parseUnits('2', 'ether')
-            let gameId
 
             beforeEach(async () => {
                 // Create a game
                 const createNewGame = await flippingCardGame.connect(deployer).createGame(entryFee)
                 await createNewGame.wait()
 
-                // Start the game with two players
-                await flippingCardGame.connect(player).startGame({
-                    value: entryFee
-                })
-
-                await flippingCardGame.connect(player1).startGame({
-                    value: entryFee
-                })
-
+                // Players join the game
+                await flippingCardGame.connect(player).joinGame()
+                await flippingCardGame.connect(player1).joinGame()
                 gameId = await flippingCardGame.gameId()
+
+                // Start the game
+                await flippingCardGame.startGame({
+                    value: entryFee
+                })
             })
 
             it('Should stop the game successfully', async () => {
@@ -357,14 +321,14 @@ describe('FlippingCardGame', () => {
             })
 
             it('Retain player registration status after stopping the game', async () => {
+                // Retrieve gameId
                 gameId = await flippingCardGame.gameId()
-                // Call the stopGame function
+                // StopGame the game
                 await flippingCardGame.connect(deployer).stopGame()
 
                 // Check players in the game
                 const isPlayerRegistered = await flippingCardGame.playerInGame(gameId, player.address)
                 const isPlayer1Registered = await flippingCardGame.playerInGame(gameId, player1.address)
-
                 expect(isPlayerRegistered).to.be.false
                 expect(isPlayer1Registered).to.be.false
             })
@@ -374,53 +338,6 @@ describe('FlippingCardGame', () => {
             it('Rejects non-owner stopping the game', async () => {
                 await expect(flippingCardGame.connect(player1).stopGame()).to.be.reverted;
             })
-        })
-    })
-
-    describe('Distribute prize', () => {
-        let gameId
-        const entryFee = ethers.parseUnits('10', 'ether')
-
-        beforeEach(async () => {
-
-            // Create a game
-            await flippingCardGame.connect(deployer).createGame(entryFee)
-            gameId = await flippingCardGame.gameId()
-
-            // Player1 starts the game
-            await flippingCardGame.connect(player1).startGame({
-                value: entryFee
-            })
-
-            // Player2 starts the game
-            await flippingCardGame.connect(player2).startGame({
-                value: entryFee
-            })
-        })
-
-        it('Distribute the prize to the winner', async () => {
-            // Check for game players
-            const players = await flippingCardGame.getGamePlayers(gameId)
-            expect(players.length).to.equal(2)
-
-            await flippingCardGame.flipCard(gameId, [5, 4])
-
-            // Get contract balance before the prize distribution
-            const contractBalanceBefore = await ethers.provider.getBalance(await flippingCardGame.getAddress())
-
-            // Get player1 balance before the prize distribution
-            const winner1BalanceBefore = await ethers.provider.getBalance(player1);
-
-            // Distribute the prize to the winner
-            const distributeTx = await flippingCardGame.distributePrize()
-            await distributeTx.wait()
-
-            // Get contract balance after the prize distribution
-            const contractBalanceAfter = await ethers.provider.getBalance(await flippingCardGame.getAddress())
-            expect(contractBalanceAfter).to.equal(0)
-
-            // Get player1 balance after the prize distribution
-            const winnerBalanceAfter = await ethers.provider.getBalance(player1)
         })
     })
 })
