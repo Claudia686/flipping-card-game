@@ -5,44 +5,60 @@ const {
     ethers
 } = require('hardhat');
 
-const subscriptionId = 1
+const subscriptionId = 531119143094894167058934294140376316805203107009978362574322664348288212641n
+const uint64Id = BigInt.asUintN(64, subscriptionId);
 const _linkToken = '0x779877a7b0d9e8603169ddbd7836e478b4624789'
 const _keyHash = '0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae'
-const _vrfCoordinator = '0x21dF544947ba3E8b3c32561399E88B52Dc8b2823'
+const _vrfCoordinator = '0x8C522F5aF6f9C4c875A2e5D1a1A7c954f486c772'
 
-// VRFCoordinatorV2Mock
+// VRFCoordinatorV2_5Mock
 const baseFee = ethers.parseUnits('0.1', 'ether')
-const gasPriceLink = ethers.parseUnits('1', 'gwei')
+const gasPrice = ethers.parseUnits('1', 'gwei')
+const weiPerUnitLink = ethers.parseUnits('0.1', 'ether')
 
 describe('FlippingCardGame', () => {
-    let flippingCardGame, deployer, player, player1, player2, vrfCoordinatorMock
+    let flippingCardGame, deployer, player, player1, player2, vrfCoordinatorV2_5Mock, VRFConsumerBaseV2
 
     beforeEach(async () => {
         [deployer, player, player1, player2] = await ethers.getSigners()
 
-        // Deploy VRFCoordinatorV2Mock
-        const VRFCoordinatorV2Mock = await ethers.getContractFactory('VRFCoordinatorV2Mock')
-        vrfCoordinatorMock = await VRFCoordinatorV2Mock.deploy(baseFee, gasPriceLink)
-        await vrfCoordinatorMock.waitForDeployment()
+        // Deploy VRFCoordinatorV2_5Mock
+        const VRFCoordinatorV2_5Mock = await ethers.getContractFactory('VRFCoordinatorV2_5Mock')
+        vrfCoordinatorV2_5Mock = await VRFCoordinatorV2_5Mock.deploy(baseFee, gasPrice, weiPerUnitLink)
+        await vrfCoordinatorV2_5Mock.waitForDeployment()
 
         // Create subscription
-        const tx = await vrfCoordinatorMock.createSubscription()
-        const receipt = await tx.wait()
+        const createTx = await vrfCoordinatorV2_5Mock.connect(deployer).createSubscription()
+        await createTx.wait()
 
-        // Deploy FlippingCardGame
+        const filter = vrfCoordinatorV2_5Mock.filters.SubscriptionCreated;
+        const events = await vrfCoordinatorV2_5Mock.queryFilter(filter, -1);
+        const subscriptionId = events[0].args[0]
+
+        // Fund subscription
+        const fundAmount = ethers.parseUnits('2', 'ether')
+        const foundTx1 = await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, fundAmount)
+        await foundTx1.wait()
+
+        // Deploy consumer FlippingCardGame
         const FlippingCardGame = await ethers.getContractFactory('FlippingCardGame')
-        flippingCardGame = await FlippingCardGame.deploy(subscriptionId, _linkToken, _keyHash, vrfCoordinatorMock)
+        flippingCardGame = await FlippingCardGame.deploy(
+            uint64Id,
+            _linkToken,
+            _keyHash,
+            _vrfCoordinator
+        )
         await flippingCardGame.waitForDeployment()
 
-        // Add the FlippingCardGame as a consumer to the created subscription
-        const contracAddress = await flippingCardGame.getAddress();
-        const addConsumerTx = await vrfCoordinatorMock.addConsumer(subscriptionId, flippingCardGame)
-        await addConsumerTx.wait()
+        // Add the FlippingCardGame as a consumer
+        const contractAddress = await flippingCardGame.getAddress();
+        const addConsumerTx = await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, contractAddress)
+        addConsumerTx.wait()
     })
 
     describe('Deployment', () => {
         it('Should have correct subscriptionId', async () => {
-            expect((await flippingCardGame.s_subscriptionId()).toString()).to.equal(subscriptionId.toString())
+            expect((await flippingCardGame.s_subscriptionId()).toString()).to.equal(uint64Id)
         })
 
         it('Should have correct keyHash', async () => {
@@ -269,14 +285,14 @@ describe('FlippingCardGame', () => {
         describe('Success', () => {
             it('Should allow the owner to request random words', async () => {
                 // Request random words
-                await flippingCardGame.connect(deployer).requestRandomWords()
+                await flippingCardGame.connect(deployer).requestWords()
                 const result = await flippingCardGame.requestInProgress()
                 expect(result).to.equal(true);
             })
 
             it('Should emit RandomWordsRequested event', async () => {
                 // Emit RandomWordsRequested event
-                const tx = await flippingCardGame.connect(deployer).requestRandomWords()
+                const tx = await flippingCardGame.connect(deployer).requestWords()
                 await expect(tx).to.emit(flippingCardGame, 'RandomWordsRequested')
             })
         })
@@ -284,9 +300,9 @@ describe('FlippingCardGame', () => {
         describe('Failure', () => {
             it('Rejects new requests during an active request', async () => {
                 // Revert new request if current request is in progress
-                await flippingCardGame.connect(deployer).requestRandomWords()
-                await expect(flippingCardGame.connect(deployer).requestRandomWords())
-                .to.be.revertedWith('Previous request still in progress');
+                await flippingCardGame.connect(deployer).requestWords()
+                await expect(flippingCardGame.connect(deployer).requestWords())
+                    .to.be.revertedWith('Previous request still in progress');
             })
         })
     })

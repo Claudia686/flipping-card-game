@@ -3,7 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     bool public gameStarted;
@@ -41,7 +43,7 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     uint32 public callbackGasLimit = 150000;
     uint16 public requestConfirmations = 3;
     uint32 public numWords = 2;
-
+    
     constructor (
         uint64  subscriptionId,
         address _linkToken,
@@ -62,7 +64,7 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     requestInProgress = false;
    }
 
-function requestRandomWords() external onlyOwner {
+function requestWords() external onlyOwner {
     // Restrict to one request at a time
     require(!requestInProgress, 'Previous request still in progress');
     uint256 requestId = COORDINATOR.requestRandomWords(
