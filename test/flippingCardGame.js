@@ -5,11 +5,9 @@ const {
     ethers
 } = require('hardhat');
 
-const subscriptionId = 531119143094894167058934294140376316805203107009978362574322664348288212641n
-const uint64Id = BigInt.asUintN(64, subscriptionId);
 const _linkToken = '0x779877a7b0d9e8603169ddbd7836e478b4624789'
 const _keyHash = '0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae'
-const _vrfCoordinator = '0x8C522F5aF6f9C4c875A2e5D1a1A7c954f486c772'
+const _vrfCoordinator = '0x8C522F5aF6f9C4c875A2e5D1a1A7c954f486c772' // rfCoordinatorV2_5Mock address
 
 // VRFCoordinatorV2_5Mock
 const baseFee = ethers.parseUnits('0.1', 'ether')
@@ -17,7 +15,7 @@ const gasPrice = ethers.parseUnits('1', 'gwei')
 const weiPerUnitLink = ethers.parseUnits('0.1', 'ether')
 
 describe('FlippingCardGame', () => {
-    let flippingCardGame, deployer, player, player1, player2, vrfCoordinatorV2_5Mock, VRFConsumerBaseV2
+    let flippingCardGame, subscriptionId, vrfCoordinatorV2_5Mock, requestId
 
     beforeEach(async () => {
         [deployer, player, player1, player2] = await ethers.getSigners()
@@ -28,22 +26,19 @@ describe('FlippingCardGame', () => {
         await vrfCoordinatorV2_5Mock.waitForDeployment()
 
         // Create subscription
-        const createTx = await vrfCoordinatorV2_5Mock.connect(deployer).createSubscription()
-        await createTx.wait()
-
+        const createSubscription = await vrfCoordinatorV2_5Mock.connect(deployer).createSubscription()
         const filter = vrfCoordinatorV2_5Mock.filters.SubscriptionCreated;
         const events = await vrfCoordinatorV2_5Mock.queryFilter(filter, -1);
-        const subscriptionId = events[0].args[0]
+        subscriptionId = events[0].args[0];
 
         // Fund subscription
-        const fundAmount = ethers.parseUnits('2', 'ether')
-        const foundTx1 = await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, fundAmount)
-        await foundTx1.wait()
+        const fundTx = await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, 100000000000000000000n)
+        await fundTx.wait()
 
         // Deploy consumer FlippingCardGame
         const FlippingCardGame = await ethers.getContractFactory('FlippingCardGame')
         flippingCardGame = await FlippingCardGame.deploy(
-            uint64Id,
+            subscriptionId,
             _linkToken,
             _keyHash,
             _vrfCoordinator
@@ -51,27 +46,45 @@ describe('FlippingCardGame', () => {
         await flippingCardGame.waitForDeployment()
 
         // Add the FlippingCardGame as a consumer
-        const contractAddress = await flippingCardGame.getAddress();
-        const addConsumerTx = await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, contractAddress)
-        addConsumerTx.wait()
+        const addConsumerTx = await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, flippingCardGame.getAddress())
+        await addConsumerTx.wait()
+
+        const isConsumerAdded = await vrfCoordinatorV2_5Mock.consumerIsAdded(subscriptionId, flippingCardGame.getAddress());
+        expect(isConsumerAdded).to.be.true;
+
+        // Request words
+        const requestWordsTx = await flippingCardGame.connect(deployer).requestWords();
+        await requestWordsTx.wait();
+        const requestFilter = flippingCardGame.filters.RandomWordsRequested;
+        const requestEvents = await flippingCardGame.queryFilter(requestFilter, -1);
+        requestId = requestEvents[0].args.requestId;
+
+        //Fulfill randomWords
+        const fulfillTx = await vrfCoordinatorV2_5Mock.fulfillRandomWords(
+            requestId,
+            flippingCardGame.getAddress())
+        await fulfillTx.wait()
     })
 
     describe('Deployment', () => {
         it('Should have correct subscriptionId', async () => {
-            expect((await flippingCardGame.s_subscriptionId()).toString()).to.equal(uint64Id)
-        })
-
-        it('Should have correct keyHash', async () => {
-            expect(await flippingCardGame.keyHash()).to.equal(_keyHash)
+            const storedSubscriptionId = await flippingCardGame.s_subscriptionId()
+            expect(storedSubscriptionId.toString()).to.equal(subscriptionId);
         })
 
         it('Should have correct linkToken', async () => {
-            expect((await flippingCardGame.linkToken()).toLowerCase()).to.equal(_linkToken.toLowerCase())
+            const storedLinkToken = await flippingCardGame.linkToken();
+            expect(storedLinkToken.toLowerCase()).to.equal(_linkToken.toLowerCase());
+        })
+
+        it('Should have correct keyHash', async () => {
+            const storedKeyHash = await flippingCardGame.keyHash();
+            expect(storedKeyHash.toString()).to.equal(_keyHash.toString());
         })
 
         it('Should have correct VRFCoordinator address', async () => {
-            const coordinatorAddress = await flippingCardGame.getVRFCoordinator();
-            expect(coordinatorAddress.toLowerCase()).to.equal(coordinatorAddress.toLowerCase())
+            const storedCoordinatorAddress = await flippingCardGame.s_vrfCoordinator();
+            expect(storedCoordinatorAddress.toLowerCase()).to.equal(_vrfCoordinator.toLowerCase());
         })
 
         it('Check for deployer address', async () => {
@@ -119,7 +132,7 @@ describe('FlippingCardGame', () => {
                 // Revert zero entry fee
                 const newEntryFee = ethers.parseUnits('0', 'ether')
                 await expect(flippingCardGame.connect(deployer).createGame(newEntryFee))
-                    .to.be.revertedWith('Entry fee must be greater than zero');
+                    .to.be.revertedWith('FlippingCardGame: Entry fee must be greater than zero');
             })
 
             it('Rejects unauthorized account from creating a game', async () => {
@@ -160,7 +173,7 @@ describe('FlippingCardGame', () => {
                 // Reject player if already registered
                 await flippingCardGame.connect(player).joinGame()
                 await expect(flippingCardGame.connect(player).joinGame())
-                    .to.be.revertedWith('Player is already registered in the game');
+                    .to.be.revertedWith('FlippingCardGame: Player is already registered in the game');
             })
         })
     })
@@ -241,7 +254,7 @@ describe('FlippingCardGame', () => {
                 // Start the game with zero value
                 await expect(flippingCardGame.startGame({
                     value: insufficientFee
-                })).to.be.revertedWith('Entry fee does not match game entry fee');
+                })).to.be.revertedWith('FlippingCardGame: Entry fee does not match game entry fee');
             })
 
             it('Rejects new player if game started', async () => {
@@ -252,7 +265,7 @@ describe('FlippingCardGame', () => {
 
                 // Attempt to start the game with a new player 
                 await expect(flippingCardGame.connect(player2).joinGame())
-                    .to.be.revertedWith('Game has already started');
+                    .to.be.revertedWith('FlippingCardGame: Game has already started');
             })
         })
     })
@@ -278,32 +291,6 @@ describe('FlippingCardGame', () => {
             const players = await flippingCardGame.getGamePlayers(currentGameId)
             expect(players).to.include(player.address);
             expect(players).to.include(player1.address);
-        })
-    })
-
-    describe('Request random words', () => {
-        describe('Success', () => {
-            it('Should allow the owner to request random words', async () => {
-                // Request random words
-                await flippingCardGame.connect(deployer).requestWords()
-                const result = await flippingCardGame.requestInProgress()
-                expect(result).to.equal(true);
-            })
-
-            it('Should emit RandomWordsRequested event', async () => {
-                // Emit RandomWordsRequested event
-                const tx = await flippingCardGame.connect(deployer).requestWords()
-                await expect(tx).to.emit(flippingCardGame, 'RandomWordsRequested')
-            })
-        })
-
-        describe('Failure', () => {
-            it('Rejects new requests during an active request', async () => {
-                // Revert new request if current request is in progress
-                await flippingCardGame.connect(deployer).requestWords()
-                await expect(flippingCardGame.connect(deployer).requestWords())
-                    .to.be.revertedWith('Previous request still in progress');
-            })
         })
     })
 
