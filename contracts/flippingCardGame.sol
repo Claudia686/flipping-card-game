@@ -156,7 +156,8 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
         distributor[gameId][msg.sender] = true; 
         gamePrizes[gameId][winner] = totalPrize; 
         prizeDistributed = true; 
-        (bool success, ) = payable(winner).call{value: totalPrize}('');
+        (bool success, ) = winner.call{value: totalPrize}('');
+
         require(success, 'FlippingCardGame: Transfer failed');
         emit PrizeDistributed(winner, totalPrize, gameId);
     }
@@ -177,7 +178,7 @@ contract FlippingCardGame is VRFConsumerBaseV2, Ownable {
     /**
      * @notice Allows a player to join an active game.
      */
-    function joinGame() public {
+    function joinGame() public  {
         require(!playerInGame[gameId][msg.sender], 'FlippingCardGame: Player is already registered in the game');
         gamePlayers[gameId].push(msg.sender);
         require(!gameStarted, 'FlippingCardGame: Game has already started');
